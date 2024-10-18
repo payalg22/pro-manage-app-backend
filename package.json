@@ -1,0 +1,26 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Backend of ProManage App",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/payalg22/pro-manage-app-backend.git"
+  },
+  "author": "Payal G",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/payalg22/pro-manage-app-backend/issues"
+  },
+  "homepage": "https://github.com/payalg22/pro-manage-app-backend#readme",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "mongoose": "^8.7.2"
+  }
+}
