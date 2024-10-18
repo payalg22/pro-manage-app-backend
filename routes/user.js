@@ -10,6 +10,20 @@ router.get("/", async (req, res) => {
   });
 });
 
+router.get("/:id", async (req, res) => {
+  const { id } = req.params;
+  const userInfo = await User.findById(id, "name email");
+  if (userInfo) {
+    res.status(200).json({
+      userInfo,
+    });
+  } else {
+    res.status(400).json({
+      message: "User not found",
+    });
+  }
+});
+
 router.post("/register", async (req, res) => {
   const { name, email, password } = req.body;
   //Check if user already exists
