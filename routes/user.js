@@ -2,10 +2,11 @@ const express = require("express");
 const router = express.Router();
 const { User } = require("../schemas/user.schema");
 const bcrypt = require("bcrypt");
+const jwt= require("jsonwebtoken");
 
 router.get("/", async (req, res) => {
   const allUsers = await User.find().select("-password -_id -__v");
-  res.status(200).json({
+  return res.status(200).json({
     allUsers,
   });
 });
@@ -14,14 +15,13 @@ router.get("/:id", async (req, res) => {
   const { id } = req.params;
   const userInfo = await User.findById(id, "name email");
   if (userInfo) {
-    res.status(200).json({
+    return res.status(200).json({
       userInfo,
     });
-  } else {
-    res.status(400).json({
-      message: "User not found",
-    });
   }
+  return res.status(400).json({
+    message: "User not found",
+  });
 });
 
 router.post("/register", async (req, res) => {
@@ -29,7 +29,7 @@ router.post("/register", async (req, res) => {
   //Check if user already exists
   const userExists = await User.findOne({ email });
   if (userExists) {
-    res.status(400).json({
+    return res.status(400).json({
       message: "User already exists",
     });
   }
@@ -41,12 +41,13 @@ router.post("/register", async (req, res) => {
     password: hashedPassword,
   });
   await newUser.save();
-  res.status(201).json({
+  return res.status(201).json({
     message: "User Created succesfully",
     email,
   });
 });
 
+//User login
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -54,24 +55,21 @@ router.post("/login", async (req, res) => {
   const userData = await User.findOne({ email });
   console.log(userData);
   if (!userData) {
-    res.status(400).json({
-      message: "User does not exist. Please register",
+    return res.status(404).json({
+      message: "Invalid username or password",
     });
-  } else {
-    const isValid = await bcrypt
-      .compare(password, userData.password)
-      .then((data) => {
-        if (data) {
-          res.status(200).json({
-            message: "User logged in succesfully",
-          });
-        } else {
-          res.status(400).json({
-            message: "Invalid user or password",
-          });
-        }
-      });
   }
+  const isValid = await bcrypt.compare(password, userData.password);
+  if (!isValid) {
+    return res.status(400).json({
+      message: "Invalid username or password",
+    });
+  }
+  const token = jwt.sign({ email: userData.email }, process.env.JWT_SECRET);
+  return res.status(200).json({
+    message: "User logged in succesfully",
+    token
+  });
 });
 
 module.exports = router;
