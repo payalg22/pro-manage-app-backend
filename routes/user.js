@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { User } = require("../schemas/user.schema");
 const bcrypt = require("bcrypt");
-const jwt= require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
 
 router.get("/", async (req, res) => {
   const allUsers = await User.find().select("-password -_id -__v");
@@ -65,10 +65,11 @@ router.post("/login", async (req, res) => {
       message: "Invalid username or password",
     });
   }
-  const token = jwt.sign({ email: userData.email }, process.env.JWT_SECRET);
+  const payload = { id: userData._id };
+  const token = jwt.sign(payload, process.env.JWT_SECRET);
   return res.status(200).json({
     message: "User logged in succesfully",
-    token
+    token,
   });
 });
 

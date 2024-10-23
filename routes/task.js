@@ -1,51 +1,52 @@
 const express = require("express");
 const router = express.Router();
 const { Task } = require("../schemas/task.schema");
-const { User } = require("../schemas/user.schema");
 const { Types } = require("mongoose");
 const authMiddleware = require("../middleware/auth");
 const getCurrentWeek = require("../utils/getCurrentWeek");
 const getCurrentMonth = require("../utils/getCurrentMonth");
 
 //Getting all the tasks as per category and filter
-//TODO: create single function for getting the schema for week and month
-router.get("/:filter", authMiddleware, async (req, res) => {
-  const owner = await User.findOne({ email: req.user.email }).select("_id");
-  const { filter } = req.params;
-  console.log(req.user);
+router.get("/:dateFilter", authMiddleware, async (req, res) => {
+  const { dateFilter } = req.params;
+
+  //Fetch tasks for month and week
+  const fetchTasks = async (user, startDate, endDate) => {
+    const tasks = await Task.find({
+      $or: [{ owner: user }, { assignee: user }],
+    })
+      .select("-__v")
+      .sort({ createdAt: 1 })
+      .where({
+        $and: [
+          { createdAt: { $gt: startDate } },
+          { createdAt: { $lt: endDate } },
+        ],
+      });
+
+    return tasks;
+  };
+
   let allTasks;
-  if (filter === "week") {
+  if (dateFilter === "week") {
     const { startDate, endDate } = getCurrentWeek();
-    allTasks = await Task.find({
-      $or: [{ owner }, { assignee: owner }],
-    })
-      .select("-__v")
-      .sort({ createdAt: 1 })
-      .where({
-        $and: [
-          { createdAt: { $gt: startDate } },
-          { createdAt: { $lt: endDate } },
-        ],
-      });
-  } else if (filter === "month") {
+    allTasks = await fetchTasks(req.user, startDate, endDate);
+  } else if (dateFilter === "month") {
     const { startDate, endDate } = getCurrentMonth();
-    allTasks = await Task.find({
-      $or: [{ owner }, { assignee: owner }],
-    })
-      .select("-__v")
-      .sort({ createdAt: 1 })
-      .where({
-        $and: [
-          { createdAt: { $gt: startDate } },
-          { createdAt: { $lt: endDate } },
-        ],
-      });
+    allTasks = await fetchTasks(req.user, startDate, endDate);
+    console.log(allTasks);
   } else {
     allTasks = await Task.find({
       $or: [{ owner }, { assignee: owner }],
     })
       .select("-__v")
       .sort({ createdAt: 1 });
+  }
+
+  if (!allTasks) {
+    return res.status(404).json({
+      message: "No tasks found",
+    });
   }
 
   const backlogTasks = allTasks.filter((task) => task.category === "backlog");
@@ -66,45 +67,31 @@ router.get("/:filter", authMiddleware, async (req, res) => {
 //Creating a new task
 router.post("/new", authMiddleware, async (req, res) => {
   const { title, priority, checklist, assigneeId, duedate } = req.body;
-  const owner = await User.findOne({ email: req.user.email }).select("_id");
-  //Splitting checlist items
+  const owner = req.user;
+  //Splitting checklist items
   const checklistItems = checklist.split(",").map((item) => item.trim());
-  const dDate = new Date(duedate);
-  //parsing owner id
-  //const owner = Types.ObjectId.createFromHexString(ownerId);
+  //date format
+  const dDate = duedate ? new Date(duedate) : null;
   //parsing assignee's id
-  let newTask;
-  if (assigneeId) {
-    const assignee = Types.ObjectId.createFromHexString(assigneeId);
-    newTask = new Task({
-      title,
-      priority,
-      checklist: checklistItems,
-      owner,
-      assignee,
-      duedate: dDate,
-    });
-  } else {
-    newTask = new Task({
-      title,
-      priority,
-      checklist: checklistItems,
-      owner,
-      duedate: dDate,
-    });
-  }
+  const assignee = assigneeId
+    ? Types.ObjectId.createFromHexString(assigneeId)
+    : null;
+  const newTask = new Task({
+    title,
+    priority,
+    checklist: checklistItems,
+    owner,
+    assignee,
+    duedate: dDate,
+  });
 
   await newTask.save();
   return res.status(201).json({ message: "Task created successfully" });
 });
 
-//Tasks for specific users
-router.get("/user/:userid", async (req, res) => {
-  let { userid } = req.params;
-  userid = Types.ObjectId.createFromHexString(userid);
-  let tasks = await Task.find({
-    $or: [{ owner: userid }, { assignee: userid }],
-  });
+//all tasks
+router.get("/", async (req, res) => {
+  let tasks = await Task.find({});
   console.log(tasks);
   if (tasks) {
     return res.status(200).json({ tasks });
@@ -126,6 +113,84 @@ router.get("/:taskId", async (req, res) => {
   return res.status(200).json({
     getTask,
   });
+});
+
+//Delete a task
+router.delete("/:taskId", authMiddleware, async (req, res) => {
+  const id = req.params.taskId;
+  const task = await Task.findById(id);
+  if (!task) {
+    return res.status(404).json({
+      message: "Task not found",
+    });
+  }
+
+  if (
+    req.user.toString() !== task.owner.toString() &&
+    req.user.toString() !== task?.assignee?.toString()
+  ) {
+    return res.status(401).json({
+      message: "You are not authorized to delete this task",
+    });
+  }
+
+  await Task.findByIdAndDelete(id);
+  res.status(200).json({
+    message: "Task deleted successfully",
+  });
+});
+
+//Update a task
+router.put("/:taskId", authMiddleware, async (req, res) => {
+  const { taskId } = req.params;
+  const { title, priority, checklist, assigneeId, duedate, category } =
+    req.body;
+  const owner = req.user;
+  //Splitting checklist items
+  const checklistItems = checklist.split(",").map((item) => item.trim());
+
+  let task = await Task.findById(taskId);
+  if (!task) {
+    return res.status(404).json({
+      message: "Task not found",
+    });
+  }
+
+  if (
+    req.user.toString() !== task.owner.toString() &&
+    req.user.toString() !== task?.assignee?.toString()
+  ) {
+    return res.status(401).json({
+      message: "You are not authorized to edit this task",
+    });
+  }
+
+  //date format
+  const dDate = duedate ? new Date(duedate) : task.duedate;
+  //parsing assignee's id
+  const assignee = assigneeId
+    ? Types.ObjectId.createFromHexString(assigneeId)
+    : task.assignee;
+
+  try {
+    task = await Task.findByIdAndUpdate(
+      taskId,
+      {
+        title,
+        priority,
+        checklist: checklistItems,
+        assignee,
+        duedate: dDate,
+        category,
+      },
+      { new: true }
+    );
+    return res.status(200).json(task);
+  } catch (err) {
+    return res.status(400).json({
+      message: "Couldn't update task. Please try again",
+    });
+  }
 });
 
 module.exports = router;
