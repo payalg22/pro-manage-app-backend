@@ -7,7 +7,7 @@ const getCurrentWeek = require("../utils/getCurrentWeek");
 const getCurrentMonth = require("../utils/getCurrentMonth");
 
 //Getting all the tasks as per category and filter
-router.get("/:dateFilter", authMiddleware, async (req, res) => {
+router.get("/user/:dateFilter", authMiddleware, async (req, res) => {
   const { dateFilter } = req.params;
 
   //Fetch tasks for month and week
@@ -37,7 +37,7 @@ router.get("/:dateFilter", authMiddleware, async (req, res) => {
     console.log(allTasks);
   } else {
     allTasks = await Task.find({
-      $or: [{ owner }, { assignee: owner }],
+      $or: [{ owner: req.user }, { assignee: req.user }],
     })
       .select("-__v")
       .sort({ createdAt: 1 });
@@ -190,6 +190,78 @@ router.put("/:taskId", authMiddleware, async (req, res) => {
     return res.status(400).json({
       message: "Couldn't update task. Please try again",
     });
+  }
+});
+
+//Grouping tasks
+router.get("/analytics/all", authMiddleware, async (req, res) => {
+  //sorting as per category
+  try {
+    const categories = await Task.aggregate([
+      {
+        $match: {
+          $or: [
+            {
+              owner: Types.ObjectId.createFromHexString(req.user),
+            },
+            {
+              assignee: Types.ObjectId.createFromHexString(req.user),
+            },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: "$category",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const priorities = await Task.aggregate([
+      {
+        $match: {
+          $or: [
+            {
+              owner: Types.ObjectId.createFromHexString(req.user),
+            },
+            {
+              assignee: Types.ObjectId.createFromHexString(req.user),
+            },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: "$priority",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const dueDateTasks = await Task.aggregate([
+      {
+        $match: {
+          $or: [
+            {
+              owner: Types.ObjectId.createFromHexString(req.user),
+            },
+            {
+              assignee: Types.ObjectId.createFromHexString(req.user),
+            },
+          ],
+          duedate: { $ne: null },
+        },
+      },
+      {
+        $count: "count",
+      },
+    ]);
+
+    return res.status(200).json({ categories, priorities, dueDateTasks });
+  } catch (error) {
+    console.log(error);
+    return res.status(500);
   }
 });
 
