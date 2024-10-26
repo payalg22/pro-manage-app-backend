@@ -102,7 +102,7 @@ router.get("/", async (req, res) => {
 });
 
 //Get a specific task
-router.get("/:taskId", async (req, res) => {
+router.get("/specific/:taskId", async (req, res) => {
   const { taskId } = req.params;
   const getTask = await Task.findById(taskId).select("-__v");
   if (!getTask) {
@@ -258,10 +258,57 @@ router.get("/analytics/all", authMiddleware, async (req, res) => {
       },
     ]);
 
-    return res.status(200).json({ categories, priorities, dueDateTasks });
+    //creating single object for all tasks
+    let allCount = {
+      duedate: dueDateTasks[0].count,
+    };
+
+    categories.forEach((item) => {
+      const key = item._id.replace("-", "");
+      allCount[key] = item.count;
+    });
+
+    priorities.forEach((item) => {
+      const key = item._id.replace("-", "");
+      allCount[key] = item.count;
+    });
+
+    console.log(allCount);
+
+    return res.status(200).json(allCount);
   } catch (error) {
     console.log(error);
     return res.status(500);
+  }
+});
+
+//Change category
+router.patch("/edit/:id/:category", authMiddleware, async (req, res) => {
+  const { id, category } = req.params;
+
+  let task = await Task.findById(id);
+  if (!task) {
+    return res.status(404).json({
+      message: "Task not found",
+    });
+  }
+
+  if (
+    req.user.toString() !== task.owner.toString() &&
+    req.user.toString() !== task?.assignee?.toString()
+  ) {
+    return res.status(401).json({
+      message: "You are not authorized to edit this task",
+    });
+  }
+
+  try {
+    task = await Task.findByIdAndUpdate(id, { category }, { new: true });
+    return res.status(200).json(task);
+  } catch (err) {
+    return res.status(400).json({
+      message: "Couldn't update task. Please try again",
+    });
   }
 });
 
