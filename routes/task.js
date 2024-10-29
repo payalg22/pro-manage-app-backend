@@ -19,29 +19,35 @@ router.get("/user/:dateFilter", authMiddleware, async (req, res) => {
       .sort({ createdAt: 1 })
       .where({
         $and: [
-          { createdAt: { $gt: startDate } },
-          { createdAt: { $lt: endDate } },
+          { createdAt: { $gte: startDate } },
+          { createdAt: { $lte: endDate } },
         ],
       });
-
     return tasks;
   };
 
-  let allTasks;
+  let allTasks, start, end;
   if (dateFilter === "week") {
     const { startDate, endDate } = getCurrentWeek();
-    allTasks = await fetchTasks(req.user, startDate, endDate);
+    start = startDate;
+    end = endDate;
   } else if (dateFilter === "month") {
     const { startDate, endDate } = getCurrentMonth();
-    allTasks = await fetchTasks(req.user, startDate, endDate);
-    console.log(allTasks);
+    start = startDate;
+    end = endDate;
+  } else if (dateFilter === "today") {
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    start = startDate;
+    end = endDate;
   } else {
-    allTasks = await Task.find({
-      $or: [{ owner: req.user }, { assignee: req.user }],
-    })
-      .select("-__v")
-      .sort({ createdAt: 1 });
+    return res.status(500).json({
+      message: "Please select valid filter",
+    });
   }
+  allTasks = await fetchTasks(req.user, start, end);
 
   if (!allTasks) {
     return res.status(404).json({
