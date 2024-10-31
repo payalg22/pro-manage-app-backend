@@ -72,26 +72,41 @@ router.get("/user/:dateFilter", authMiddleware, async (req, res) => {
 
 //Creating a new task
 router.post("/new", authMiddleware, async (req, res) => {
-  const { title, priority, checklist, assigneeId, duedate } = req.body;
+  //   const { title, priority, checklist, assigneeId, duedate } = req.body;
   const owner = req.user;
-  //Splitting checklist items
-  const checklistItems = checklist.split(",").map((item) => item.trim());
-  //date format
-  const dDate = duedate ? new Date(duedate) : null;
-  //parsing assignee's id
-  const assignee = assigneeId
-    ? Types.ObjectId.createFromHexString(assigneeId)
-    : null;
-  const newTask = new Task({
-    title,
-    priority,
-    checklist: checklistItems,
-    owner,
-    assignee,
-    duedate: dDate,
-  });
+  //   //Splitting checklist items
+  //   const checklistItems = checklist.split(",").map((item) => item.trim());
+  //   //date format
+  //   const dDate = duedate ? new Date(duedate) : null;
+  //   //parsing assignee's id
+  //   const assignee = assigneeId
+  //     ? Types.ObjectId.createFromHexString(assigneeId)
+  //     : null;
+  //   const newTask = new Task({
+  //     title,
+  //     priority,
+  //     checklist: checklistItems,
+  //     owner,
+  //     assignee,
+  //     duedate: dDate,
+  //   });
+  console.log(req.body);
+  //const data = JSON.parse(req.body);
+  try {
+    //let data = JSON.parse(req.body);
+    let data = {
+      ...req.body,
+      owner,
+    };
+    const newTask = new Task(data);
 
-  await newTask.save();
+    await newTask.save();
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Please try again" });
+    
+  }
+
   return res.status(201).json({ message: "Task created successfully" });
 });
 
@@ -110,7 +125,9 @@ router.get("/", async (req, res) => {
 //Get a specific task
 router.get("/specific/:taskId", async (req, res) => {
   const { taskId } = req.params;
-  const getTask = await Task.findById(taskId).select("-__v");
+  const getTask = await Task.findById(taskId).select(
+    "-__v -_id -owner -assignee -createdAt"
+  );
   if (!getTask) {
     return res.status(404).json({
       message: "Task doesn't exist or was deleted",

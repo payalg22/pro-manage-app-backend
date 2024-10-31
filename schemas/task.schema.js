@@ -1,6 +1,14 @@
 const mongoose = require("mongoose");
 const { Schema, model, SchemaTypes } = mongoose;
 
+const checklistSchema = new Schema({
+  content: String,
+  completed: {
+    type: Boolean,
+    default: false,
+  },
+});
+
 const taskSchema = new Schema({
   title: {
     type: String,
@@ -18,17 +26,13 @@ const taskSchema = new Schema({
   owner: {
     type: SchemaTypes.ObjectId,
     ref: "User",
+    required: true,
   },
   createdAt: {
     type: Date,
     default: Date.now,
   },
-  checklist: [
-    {
-      type: String,
-      required: true,
-    },
-  ],
+  checklist: [checklistSchema],
   category: {
     type: String,
     enum: ["backlog", "to-do", "in-progress", "done"],

@@ -3,9 +3,13 @@ const router = express.Router();
 const { User } = require("../schemas/user.schema");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const authMiddleware = require("../middleware/auth");
 
-router.get("/", async (req, res) => {
-  const allUsers = await User.find().select("-password -_id -__v");
+router.get("/", authMiddleware, async (req, res) => {
+  const { user } = req;
+  const allUsers = await User.find({ _id: { $ne: user } }).select(
+    "-password -__v"
+  );
   return res.status(200).json({
     allUsers,
   });
