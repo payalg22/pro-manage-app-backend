@@ -91,9 +91,7 @@ router.post("/new", authMiddleware, async (req, res) => {
   //     duedate: dDate,
   //   });
   console.log(req.body);
-  //const data = JSON.parse(req.body);
   try {
-    //let data = JSON.parse(req.body);
     let data = {
       ...req.body,
       owner,
@@ -283,7 +281,7 @@ router.get("/analytics/all", authMiddleware, async (req, res) => {
 
     //creating single object for all tasks
     let allCount = {
-      duedate: dueDateTasks[0].count,
+      duedate: dueDateTasks[0]?.count || 0,
     };
 
     categories.forEach((item) => {
@@ -318,7 +316,7 @@ router.patch("/edit/:id/:category", authMiddleware, async (req, res) => {
 
   if (
     req.user.toString() !== task.owner.toString() &&
-    req.user.toString() !== task?.assignee?.toString()
+    req.user.toString() !== (task?.assignee?.toString())
   ) {
     return res.status(401).json({
       message: "You are not authorized to edit this task",
