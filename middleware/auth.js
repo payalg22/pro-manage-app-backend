@@ -5,7 +5,7 @@ const verifyUser = (req, res, next) => {
   try {
     const token = req.headers.authorization;
     if (!token) {
-      return res.status(400).json({
+      return res.status(401).json({
         message: "Please login and try again",
       });
     }
@@ -13,8 +13,7 @@ const verifyUser = (req, res, next) => {
     req.user = decoded.id;
     next();
   } catch (err) {
-    console.log(err);
-    return res.status(400).json({
+    return res.status(401).json({
       message: "Please login and try again",
     });
   }

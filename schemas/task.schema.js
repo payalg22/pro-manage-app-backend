@@ -23,6 +23,11 @@ const taskSchema = new Schema({
     type: SchemaTypes.ObjectId,
     ref: "User",
   },
+  member: {
+    type: SchemaTypes.ObjectId,
+    ref: "User",
+    default: null,
+  },
   owner: {
     type: SchemaTypes.ObjectId,
     ref: "User",
