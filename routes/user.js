@@ -127,12 +127,13 @@ router.put("/update", authMiddleware, async (req, res) => {
           message: "Invalid password",
         });
       }
+      const hashedPassword = await bcrypt.hash(data.newPassword, 10);
+      data = {
+        ...data,
+        password: hashedPassword,
+      };
     }
-    const hashedPassword = await bcrypt.hash(data.newPassword, 10);
-    data = {
-      ...data,
-      password: hashedPassword,
-    };
+
     userInfo = await User.findByIdAndUpdate(user, data, { new: true });
     res.status(201).json(userInfo);
   } catch (err) {
@@ -142,4 +143,4 @@ router.put("/update", authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router; 
