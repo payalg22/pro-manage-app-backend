@@ -81,11 +81,13 @@ router.get("/user/:dateFilter", authMiddleware, async (req, res) => {
 //Creating a new task
 router.post("/new", authMiddleware, async (req, res) => {
   const owner = req.user;
+  const assignee = req.body.assignee || null;
   try {
     let data = {
       ...req.body,
+      assignee,
       owner,
-    };
+    }; 
     const newTask = new Task(data);
 
     await newTask.save();
